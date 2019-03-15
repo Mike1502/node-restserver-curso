@@ -22,3 +22,15 @@ if (process.env.NODE_ENV === 'dev') {
     urlDB = process.env.MONGO_URL;
 }
 process.env.URLDB = urlDB;
+
+// ============================
+//  Vencimiento del token
+// ============================
+
+process.env.CADUCIDAD_TOKEN = 864000;
+
+// ============================
+//  SEED de autenticacion
+// ============================
+
+process.env.SEED = process.env.SEED || 'secreto';

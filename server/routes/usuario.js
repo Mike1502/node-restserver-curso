@@ -3,137 +3,92 @@ const app = express();
 const bcrypt = require('bcrypt');
 const _ = require('underscore');
 const Usuario = require('../models/usuario');
+const { verToken, verRole } = require('../middleware/auth');
 
-app.get('/usuario', function(req, res) {
-    let desde = req.query.desde || 0;
-    desde = Number(desde);
-    let limite = req.query.limite || 5;
-    limite = Number(limite);
+app.get('/usuario', verToken, async(req, res) => {
 
-    Usuario.find({}, 'role, nombre').skip(desde).limit(limite).exec((err, usuarios) => {
-        if (err) {
-            return res.status(400).json({
-                ok: false,
-                err
-            });
-        }
-
-        Usuario.count({}, (err, cont) => {
-            res.json({
-                ok: true,
-                usuarios,
-                cont
-            });
-        });
+    return res.status(200).json({
+        usuario: req.usuario,
+        nombre: req.usuario.nombre
     });
-});
-
-app.post('/usuario', function(req, res) {
-    let body = req.body;
-
-    let usuario = new Usuario({
-        nombre: body.nombre,
-        email: body.email,
-        password: bcrypt.hashSync(body.password, 10),
-        role: body.role
-    });
-
-    usuario.save((err, usuarioDB) => {
-        if (err) {
-            return res.status(400).json({
-                ok: false,
-                err
-            });
-        }
-
-        // usuarioDB.password = null;
-
-        res.json({
-            ok: true,
-            usuario: usuarioDB
-        });
-    });
-});
-
-app.put('/usuario/:id', function(req, res) {
-
-    let id = req.params.id;
-    let body = _.pick(req.body, ['nombre', 'email', 'img', 'role', 'estado'])
-
-    Usuario.findByIdAndUpdate(id, body, { new: true, runValidators: true }, (err, usuarioDB) => {
-        if (err) {
-            return res.status(400).json({
-                ok: false,
-                err
-            });
-        }
-
-        res.json({
-            ok: true,
-            usuario: usuarioDB
-        });
-    });
-});
-
-
-// Delete logico 
-app.delete('/usuario/:id', async(req, res) => {
-    const id = req.params.id;
-    const userId = { _id: id }
-    const userUpdate = { estado: false }
 
     try {
-        let deleted = await Usuario.findOneAndUpdate(userId, userUpdate, { new: true });
+        let users = await Usuario.find();
 
-        res.json({
-            ok: true,
-            usuario: deleted
+        res.status(200).json({
+            Usuarios: users
         });
-
-    } catch (err) {
-        return res.status(400).json({
-            ok: false,
-            err,
-            userId,
-            userUpdate
-        });
+    } catch (error) {
+        return res.status(400).json({ error });
     }
 });
 
-// Albert
-// app.delete('/usuario/:id', async function(req, res) {
-//     try {
-//         let id = req.params.id;
-//         let deleted = await Usuario.findOneAndDelete({ _id: id });
+app.get('/usuario/:id', verToken, async(req, res) => {
+    try {
+        let id = req.params.id;
+        const userId = { _id: id }
+        let user = await Usuario.findOne(userId);
 
-//         res.json({
-//             ok: true,
-//             usuario: deleted
-//         });
-//     } catch (err) {
-//         res.status(500).json(err);
-//     }
-// });
+        res.status(200).json({
+            Usuario: user
+        });
+    } catch (error) {
+        return res.status(400).json({ error });
+    }
+});
 
-// Curso
+app.post('/usuario', [verToken, verRole], async(req, res) => {
+    try {
+        let body = req.body;
+        const newUser = new Usuario({
+            nombre: body.nombre,
+            email: body.email,
+            password: bcrypt.hashSync(body.password, 10),
+            role: body.role
+        });
 
-// app.delete('/usuario/:id', function(req, res) {
-//     let id = req.params.id;
+        let userAdded = await newUser.save();
 
-//     Usuario.findByIdAndRemove(id, (err, usuarioBorrado) => {
-//         if (err) {
-//             return res.status(400).json({
-//                 ok: false,
-//                 err
-//             });
-//         }
+        res.status(200).json({
+            UsuarioNuevo: userAdded
+        });
+    } catch (error) {
+        return res.status(400).json({ error });
+    }
 
-//         res.json({
-//             ok: true,
-//             usuario: usuarioBorrado
-//         });
+});
 
-//     });
-// });
+app.patch('/usuario/:id', [verToken, verRole], async(req, res) => {
+    try {
+        let id = req.params.id;
+        const userId = { _id: id }
+        const body = _.pick(req.body, ['nombre', 'email', 'img', 'role', 'estado']);
+
+        let userUpdated = await Usuario.findOneAndUpdate(userId, body, { new: true, runValidator: true });
+
+        res.status(200).json({
+            UsuarioActualizado: userUpdated
+        });
+    } catch (error) {
+        return res.status(400).json({ error });
+    }
+});
+
+app.delete('/usuario/:id', [verToken, verRole], async(req, res) => {
+    try {
+        const id = req.params.id;
+        const userId = { _id: id }
+        const userUpdate = { estado: false }
+
+        let userDeleted = await Usuario.findOneAndUpdate(userId, userUpdate, { new: true });
+
+        res.status(200).json({
+            UsuarioEliminado: userDeleted
+        });
+
+    } catch (error) {
+        return res.status(400).json({ error });
+    }
+});
 
 module.exports = app;
